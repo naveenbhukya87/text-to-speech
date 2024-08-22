@@ -12,7 +12,7 @@ const app = express();
 app.use(morgan("dev"))
 const server = require('http').createServer(app);
 
-if (process.env.ENV === "prod") {
+if (process.env.ENV === "local") {
     process.env.GOOGLE_APPLICATION_CREDENTIALS = process.env.GOOGLE_APPLICATION_CREDENTIALS_LOCAL
 } else {
     process.env.GOOGLE_APPLICATION_CREDENTIALS = process.env.GOOGLE_APPLICATION_CREDENTIALS_PROD
