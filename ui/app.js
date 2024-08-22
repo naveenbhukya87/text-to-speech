@@ -54,7 +54,7 @@ function convertBlobToBase64(blob) {
 // Send Audio to Server
 async function sendAudioToServer(base64Audio) {
     try {
-        const response = await fetch('http://localhost:5000/stt/convert', {
+        const response = await fetch('/stt/convert', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

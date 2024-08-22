@@ -6,11 +6,17 @@ const speech = require('@google-cloud/speech');
 const textToSpeech = require('@google-cloud/text-to-speech');
 const { setHeaders } = require('./node/helpers/set-headers');
 const morgan = require('morgan')
+const path = require('path')
 
 const app = express();
 app.use(morgan("dev"))
 const server = require('http').createServer(app);
 
+if (process.env.ENV === "prod") {
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = process.env.GOOGLE_APPLICATION_CREDENTIALS_LOCAL
+} else {
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = process.env.GOOGLE_APPLICATION_CREDENTIALS_PROD
+}
 // Set up Google Cloud clients
 const speechClient = new speech.SpeechClient({
     keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
@@ -23,6 +29,14 @@ const client = new textToSpeech.TextToSpeechClient({
 app.use(setHeaders);
 app.use(cors({ origin: process.env.ORIGIN || "*", methods: ['GET', 'PUT', 'POST', 'OPTIONS'] }));
 app.use(bodyParser.json());
+
+//DEPLOYMENT
+const __dirname1 = path.resolve();
+app.use(express.static(path.join(__dirname1, "ui")));
+app.get("/home", (req, res) => {
+    res.sendFile(path.resolve(__dirname1, "ui", "index.html"))
+})
+//DEPLOYMENT
 
 app.post('/tts/convert', async (req, res) => {
     const request = {
@@ -77,65 +91,65 @@ app.post('/stt/convert', async (req, res) => {
     }
 });
 
-const io = require('socket.io')(server, {
-    cors: {
-        origin: "*",
-        path: '/stt/socket'
-    }
-});
-// WebSocket setup
-// Handle Socket.IO connections
-io.on('connection', (client) => {
-    console.log("Client connected to server");
-    let recognizeStream = null;
+// const io = require('socket.io')(server, {
+//     cors: {
+//         origin: "*",
+//         path: '/stt/socket'
+//     }
+// });
+// // WebSocket setup
+// // Handle Socket.IO connections
+// io.on('connection', (client) => {
+//     console.log("Client connected to server");
+//     let recognizeStream = null;
 
-    client.on('join', () => {
-        client.emit('messages', 'Socket Connected to Server');
-    });
+//     client.on('join', () => {
+//         client.emit('messages', 'Socket Connected to Server');
+//     });
 
-    client.on('messages', (data) => {
-        client.emit('broad', data);
-    });
+//     client.on('messages', (data) => {
+//         client.emit('broad', data);
+//     });
 
-    client.on('startGoogleCloudStream', () => {
-        startRecognitionStream(client);
-    });
+//     client.on('startGoogleCloudStream', () => {
+//         startRecognitionStream(client);
+//     });
 
-    client.on('endGoogleCloudStream', () => {
-        stopRecognitionStream();
-    });
+//     client.on('endGoogleCloudStream', () => {
+//         stopRecognitionStream();
+//     });
 
-    client.on('binaryData', (data) => {
-        if (recognizeStream) recognizeStream.write(data);
-    });
+//     client.on('binaryData', (data) => {
+//         if (recognizeStream) recognizeStream.write(data);
+//     });
 
-    function startRecognitionStream(client) {
-        stopRecognitionStream(); // Ensure previous stream is closed before starting a new one
+//     function startRecognitionStream(client) {
+//         stopRecognitionStream(); // Ensure previous stream is closed before starting a new one
 
-        recognizeStream = speechClient
-            .streamingRecognize(request)
-            .on('error', console.error)
-            .on('data', (data) => {
-                const transcription = data.results[0]?.alternatives[0]?.transcript;
-                if (transcription) {
-                    console.log(`Transcription: ${transcription}`);
-                    client.emit('speechData', data);
-                }
+//         recognizeStream = speechClient
+//             .streamingRecognize(request)
+//             .on('error', console.error)
+//             .on('data', (data) => {
+//                 const transcription = data.results[0]?.alternatives[0]?.transcript;
+//                 if (transcription) {
+//                     console.log(`Transcription: ${transcription}`);
+//                     client.emit('speechData', data);
+//                 }
 
-                if (data.results[0]?.isFinal) {
-                    stopRecognitionStream();
-                    startRecognitionStream(client);
-                }
-            });
-    }
+//                 if (data.results[0]?.isFinal) {
+//                     stopRecognitionStream();
+//                     startRecognitionStream(client);
+//                 }
+//             });
+//     }
 
-    function stopRecognitionStream() {
-        if (recognizeStream) {
-            recognizeStream.end();
-        }
-        recognizeStream = null;
-    }
-});
+//     function stopRecognitionStream() {
+//         if (recognizeStream) {
+//             recognizeStream.end();
+//         }
+//         recognizeStream = null;
+//     }
+// });
 
 
 // Start server
