@@ -153,7 +153,9 @@ app.post('/stt/convert', async (req, res) => {
 
 
 // Start server
-const port = process.env.PORT || 5000;
-server.listen(port, () => {
-    console.log(`Server is up and running on port: ${port}`);
+// Use the PORT environment variable or default to 10000
+const PORT = process.env.PORT || 10000;
+// Bind to 0.0.0.0 to accept requests from all IPs
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server is running on port ${PORT}`);
 });
