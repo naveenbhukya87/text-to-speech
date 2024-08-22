@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech to Text Streaming</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+            color: #343a40;
+        }
+
+        .container {
+            margin-top: 50px;
+            max-width: 600px;
+        }
+
+        h1 {
+            color: #007bff;
+        }
+
+        #recordButton,
+        #stopButton {
+            margin-top: 20px;
+            margin-right: 10px;
+        }
+
+        #status {
+            margin-top: 20px;
+        }
+
+        #transcription {
+            margin-top: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #0056b3;
+        }
+    </style>
+    <script>
+        const base_domain = 'http://localhost:5000/';
+        let mediaRecorder;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const recordButton = document.getElementById('recordButton');
+            const stopButton = document.getElementById('stopButton');
+            const status = document.getElementById('status');
+            const transcription = document.getElementById('transcription');
+
+            // Start Recording
+            recordButton.addEventListener('click', async () => {
+                const socket = io('http://localhost:5000', { path: '/stt/socket' });
+                socket.on('connect', () => {
+                    console.log('Connected to server via WebSocket');
+                    socket.emit('join');
+                    socket.emit('startGoogleCloudStream');
+                });
+
+                socket.on('speechData', (data) => {
+                    const transcriptionText = data.results[0]?.alternatives[0]?.transcript;
+                    if (transcriptionText) {
+                        transcription.textContent += transcriptionText + ' ';
+                    }
+                });
+
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        mediaRecorder = new MediaRecorder(stream);
+
+                        mediaRecorder.ondataavailable = event => {
+                            if (event.data.size > 0) {
+                                socket.emit('binaryData', event.data);
+                            }
+                        };
+
+                        mediaRecorder.start(250); // Sending data every 250ms
+
+                        status.textContent = "Recording...";
+                        recordButton.disabled = true;
+                        stopButton.disabled = false;
+                    } catch (error) {
+                        console.error('Error accessing microphone:', error);
+                    }
+                } else {
+                    alert('Your browser does not support audio recording.');
+                }
+            });
+
+            // Stop Recording
+            stopButton.addEventListener('click', () => {
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
+                if (socket) {
+                    socket.emit('endGoogleCloudStream');
+                    socket.disconnect();
+                }
+
+                status.textContent = "Stopped.";
+                recordButton.disabled = false;
+                stopButton.disabled = true;
+            });
+        });
+    </script>
+</head>
+
+<body>
+    <div class="container text-center">
+        <h1>Speech to Text Streaming</h1>
+        <button id="recordButton" class="btn btn-primary">Start Recording</button>
+        <button id="stopButton" class="btn btn-danger" disabled>Stop Recording</button>
+        <p id="status">Press "Start Recording" to begin.</p>
+        <h3 class="text-primary">Transcription:</h3>
+        <p id="transcription"></p>
+    </div>
+</body>
+
+</html>

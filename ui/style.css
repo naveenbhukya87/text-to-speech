@@ -1,0 +1,25 @@
+body {
+  background-color: #f8f9fa;
+  color: #343a40;
+}
+.container {
+  margin-top: 50px;
+  max-width: 600px;
+}
+h1 {
+  color: #007bff;
+}
+#recordButton,
+#stopButton {
+  margin-top: 20px;
+  margin-right: 10px;
+}
+#status {
+  margin-top: 20px;
+}
+#transcription {
+  margin-top: 20px;
+  font-size: 1.2em;
+  font-weight: bold;
+  color: #0056b3;
+}

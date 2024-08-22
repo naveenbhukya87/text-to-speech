@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech to Text</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container text-center">
+        <h1>Speech to Text Converter</h1>
+        <button id="recordButton" class="btn btn-primary">Start Recording</button>
+        <button id="stopButton" class="btn btn-danger" disabled>Stop Recording</button>
+        <p id="status">Press "Start Recording" to begin.</p>
+        <h3 class="text-primary">Transcription:</h3>
+        <p id="transcription"></p>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

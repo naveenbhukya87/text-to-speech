@@ -5,15 +5,11 @@ const cors = require('cors');
 const speech = require('@google-cloud/speech');
 const textToSpeech = require('@google-cloud/text-to-speech');
 const { setHeaders } = require('./node/helpers/set-headers');
+const morgan = require('morgan')
 
 const app = express();
+app.use(morgan("dev"))
 const server = require('http').createServer(app);
-const io = require('socket.io')(server, {
-    cors: {
-        origin: "*",
-        path: '/stt/socket'
-    }
-});
 
 // Set up Google Cloud clients
 const speechClient = new speech.SpeechClient({
@@ -27,14 +23,6 @@ const client = new textToSpeech.TextToSpeechClient({
 app.use(setHeaders);
 app.use(cors({ origin: process.env.ORIGIN || "*", methods: ['GET', 'PUT', 'POST', 'OPTIONS'] }));
 app.use(bodyParser.json());
-app.use('/stt/assets', express.static(__dirname + '/public'));
-app.use('/stt/session/assets', express.static(__dirname + '/public'));
-app.set('view engine', 'ejs');
-
-// Routes
-app.get('/stt/home', (req, res) => {
-    res.render('index', {});
-});
 
 app.post('/tts/convert', async (req, res) => {
     const request = {
@@ -54,7 +42,49 @@ app.post('/tts/convert', async (req, res) => {
     }
 });
 
+app.post('/stt/convert', async (req, res) => {
+    try {
+        if (!req.body.audioContent) {
+            return res.status(400).send({ message: "No audio content provided" });
+        }
+
+        const audioBytes = req.body.audioContent; // The audio content sent as base64 string
+        const audio = {
+            content: audioBytes,
+        };
+
+        const config = {
+            encoding: 'WEBM_OPUS',  // Use 'WEBM_OPUS' or 'OGG_OPUS' if using Opus codec, or keep 'LINEAR16' if PCM
+            sampleRateHertz: 48000,  // Updated to match the actual recording sample rate
+            languageCode: 'en-US',   // Adjust as necessary
+        };
+
+        const request = {
+            audio: audio,
+            config: config,
+        };
+
+        const [response] = await speechClient.recognize(request);
+        const transcription = response.results
+            .map(result => result.alternatives[0].transcript)
+            .join('\n');
+
+        res.send({ transcription });
+
+    } catch (error) {
+        console.error('Error during speech-to-text conversion:', error);
+        res.status(500).send({ message: "STT conversion failed", error: error.message });
+    }
+});
+
+const io = require('socket.io')(server, {
+    cors: {
+        origin: "*",
+        path: '/stt/socket'
+    }
+});
 // WebSocket setup
+// Handle Socket.IO connections
 io.on('connection', (client) => {
     console.log("Client connected to server");
     let recognizeStream = null;
@@ -67,7 +97,7 @@ io.on('connection', (client) => {
         client.emit('broad', data);
     });
 
-    client.on('startGoogleCloudStream', (data) => {
+    client.on('startGoogleCloudStream', () => {
         startRecognitionStream(client);
     });
 
@@ -107,20 +137,9 @@ io.on('connection', (client) => {
     }
 });
 
-// Google Cloud Speech-to-Text configuration
-const request = {
-    config: {
-        encoding: 'LINEAR16',
-        sampleRateHertz: 16000,
-        languageCode: 'en-US',
-        profanityFilter: false,
-        enableWordTimeOffsets: true,
-    },
-    interimResults: true
-};
 
 // Start server
-const port = process.env.PORT || 8008;
+const port = process.env.PORT || 5000;
 server.listen(port, () => {
     console.log(`Server is up and running on port: ${port}`);
 });
